@@ -9,6 +9,7 @@ ONNXSIM_FIXED_POINT_ITERS=10000 onnxsim depth_anything_v2_small.onnx depth_anyth
 
 python merge_preprocess_onnx.py
 ```
+![image](https://github.com/user-attachments/assets/0bc94ed3-17ad-4b5b-837e-07d20bdb96b2)
 
 ## 2. Inference test
 
