@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "debug",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": [
+                // "-i", "./images_partial",
+                "-i", "./images",
+
+                "-ep", "tensorrt",
+                // "-ep", "cuda",
+                // "-it", "int8",
+                "-dvw",
+                "-dwk",
+
+                // "-ost", "0.15",
+                // "-ast", "0.70",
+                "-kst", "0.25",
+
+                "-dnm",
+                "-dgm",
+                "-dlr",
+                "-dhm",
+                "-kdm", "dot",
+                // "-drc", "17", "18", "19", "20", "21",
+                "-edm",
+                // "-ehd",
+                // "-oyt",
+            ]
+        }
+    ]
+}
