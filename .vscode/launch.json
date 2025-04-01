@@ -11,8 +11,8 @@
                 // "-i", "./images_partial",
                 "-i", "./images",
 
-                "-ep", "tensorrt",
-                // "-ep", "cuda",
+                // "-ep", "tensorrt",
+                "-ep", "cuda",
                 // "-it", "int8",
                 "-dvw",
                 "-dwk",

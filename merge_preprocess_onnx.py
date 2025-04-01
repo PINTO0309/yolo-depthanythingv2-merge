@@ -10,6 +10,7 @@ from sor4onnx import rename
 from snc4onnx import combine
 from soa4onnx import outputs_add
 from sne4onnx import extraction
+from sio4onnx import io_change
 
 class Pre_model(torch.nn.Module):
     def __init__(
@@ -75,11 +76,24 @@ class DepthBBoxProcessor(torch.nn.Module):
 def main():
     dpa_H = 490 # 480->490, Multiples of 14
     dpa_W = 644 # 640->644, Multiples of 14
-
     onnx_file = f"depth_anything_v2_small_{dpa_H}x{dpa_W}.onnx"
-    output_onnx_file = onnx_file
-
     shutil.copy('depth_anything_v2_small.onnx', onnx_file)
+    metric_inout = ""
+    extraction_op_name = "depthanything/Relu_output_0"
+
+    # dpa_H = 518 # Multiples of 14
+    # dpa_W = 518 # Multiples of 14
+    # onnx_file = f"depth_anything_v2_metric_hypersim_vits_indoor_maxdepth20_1x3x{dpa_H}x{dpa_W}.onnx"
+    # metric_inout = "_metric_indoor"
+    # extraction_op_name = "depthanything/Mul_1_output_0"
+
+    # dpa_H = 518 # Multiples of 14
+    # dpa_W = 518 # Multiples of 14
+    # onnx_file = f"depth_anything_v2_metric_vkitti_vits_outdoor_maxdepth80_1x3x{dpa_H}x{dpa_W}.onnx"
+    # metric_inout = "_metric_outdoor"
+    # extraction_op_name = "depthanything/Mul_1_output_0"
+
+    output_onnx_file = onnx_file
 
     rename(
         old_new=["/", "depthanything/"],
@@ -133,10 +147,20 @@ def main():
 
     extraction(
         input_op_names=['pixel_values'],
-        output_op_names=['depthanything/Relu_output_0'],
+        output_op_names=[extraction_op_name],
         input_onnx_file_path=output_onnx_file,
         output_onnx_file_path=output_onnx_file,
     )
+
+    # io_change(
+    #     input_onnx_file_path=output_onnx_file,
+    #     output_onnx_file_path=output_onnx_file,
+    #     input_names=["pixel_values"],
+    #     input_shapes=[["batch_size", 3, "height", "width"]],
+    #     output_names=[extraction_op_name],
+    #     output_shapes=[["batch_size", 1, "height", "width"]],
+    # )
+
     model_onnx = onnx.load(output_onnx_file)
     model_simp, check = simplify(
         model=model_onnx,
@@ -145,7 +169,7 @@ def main():
     onnx.save(model_simp, output_onnx_file)
 
     rename(
-        old_new=["depthanything/Relu_output_0", "depth"],
+        old_new=[extraction_op_name, "depth"],
         input_onnx_file_path=output_onnx_file,
         output_onnx_file_path=output_onnx_file,
         mode="outputs",
@@ -268,22 +292,22 @@ def main():
             f'yolov9_e_wholebody34_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
             pre_onnx_file,
         ],
-        output_onnx_file_path = f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+        output_onnx_file_path = f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
     )
     combine(
         srcop_destop = [
             ['output_pre', 'pixel_values']
         ],
         input_onnx_file_paths = [
-            f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
-            f'depth_anything_v2_small_{dpa_H}x{dpa_W}.onnx',
+            f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+            onnx_file,
         ],
-        output_onnx_file_path = f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+        output_onnx_file_path = f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
     )
     rename(
         old_new=["depth", "yolo_depth"],
-        input_onnx_file_path=f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
-        output_onnx_file_path=f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+        input_onnx_file_path=f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+        output_onnx_file_path=f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
         mode="outputs",
         search_mode="prefix_match",
     )
@@ -292,25 +316,25 @@ def main():
             ['yolo_depth', 'input_post', 'input_bgr', 'input_image_bgr'],
         ],
         input_onnx_file_paths = [
-            f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+            f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
             post_onnx_file,
         ],
-        output_onnx_file_path = f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+        output_onnx_file_path = f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
     )
     combine(
         srcop_destop = [
             ['batchno_classid_score_x1y1x2y2', 'input_bboxes', 'depth', 'inuput_depth_map'],
         ],
         input_onnx_file_paths = [
-            f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+            f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
             bbox_depth_merge_onnx_file,
         ],
-        output_onnx_file_path = f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+        output_onnx_file_path = f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
     )
     outputs_add(
-        input_onnx_file_path=f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+        input_onnx_file_path=f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
         output_op_names=["depth"],
-        output_onnx_file_path=f'yolov9_e_wholebody34_with_depth_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
+        output_onnx_file_path=f'yolov9_e_wholebody34_with_depth{metric_inout}_post_0100_1x3x{yolo_H}x{yolo_W}.onnx',
     )
 
 if __name__ == "__main__":
