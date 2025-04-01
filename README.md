@@ -9,6 +9,7 @@ ONNXSIM_FIXED_POINT_ITERS=10000 onnxsim depth_anything_v2_small.onnx depth_anyth
 
 python merge_preprocess_onnx.py
 ```
+![image](https://github.com/user-attachments/assets/0bc94ed3-17ad-4b5b-837e-07d20bdb96b2)
 
 ## 2. Inference test
 
@@ -26,6 +27,9 @@ python demo_yolov9_onnx_wholebody34_with_edges_with_depth.py \
 -kdm dot \
 -edm
 ```
+![000000000241](https://github.com/user-attachments/assets/b75dcab1-5441-4e05-af10-a05f4ca3a1e3)
+
+![000000012069](https://github.com/user-attachments/assets/5f958051-2893-48f0-8463-3cdd0743298e)
 
 ## 3. Benchmark
 
