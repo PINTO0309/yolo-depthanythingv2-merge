@@ -1,3 +1,5 @@
 *.onnx
 *.engine
 *.profile
+*.mp4
+*.jpg

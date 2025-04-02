@@ -8,13 +8,17 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                // "-i", "./images_partial",
-                "-i", "./images",
+                "-m", "yolov9_e_wholebody34_with_depth_metric_indoor_post_0100_1x3x480x640.onnx",
+                // "-m", "yolov9_e_wholebody34_with_depth_metric_outdoor_post_0100_1x3x480x640.onnx",
 
-                // "-ep", "tensorrt",
-                "-ep", "cuda",
+                "-v", "0",
+                // "-i", "./images_partial",
+                // "-i", "./images",
+
+                "-ep", "tensorrt",
+                // "-ep", "cuda",
                 // "-it", "int8",
-                "-dvw",
+                // "-dvw",
                 "-dwk",
 
                 // "-ost", "0.15",
@@ -27,8 +31,9 @@
                 "-dhm",
                 "-kdm", "dot",
                 // "-drc", "17", "18", "19", "20", "21",
+                // "-ebd",
                 "-edm",
-                // "-ehd",
+                "-ehd",
                 // "-oyt",
             ]
         }

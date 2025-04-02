@@ -328,6 +328,7 @@ class YOLOv9(AbstractModel):
         disable_gender_identification_mode: bool,
         disable_left_and_right_hand_identification_mode: bool,
         disable_headpose_identification_mode: bool,
+        is_metric: bool,
     ) -> Tuple[List[Box], np.ndarray]:
         """
 
@@ -372,6 +373,7 @@ class YOLOv9(AbstractModel):
                 disable_gender_identification_mode=disable_gender_identification_mode,
                 disable_left_and_right_hand_identification_mode=disable_left_and_right_hand_identification_mode,
                 disable_headpose_identification_mode=disable_headpose_identification_mode,
+                is_metric=is_metric,
             )
         return result_boxes, result_depth
 
@@ -408,6 +410,7 @@ class YOLOv9(AbstractModel):
         disable_gender_identification_mode: bool,
         disable_left_and_right_hand_identification_mode: bool,
         disable_headpose_identification_mode: bool,
+        is_metric: bool,
     ) -> List[Box]:
         """_postprocess
 
@@ -430,6 +433,8 @@ class YOLOv9(AbstractModel):
 
         disable_headpose_identification_mode: bool
 
+        is_metric: bool
+
         Returns
         -------
         result_boxes: List[Box]
@@ -448,7 +453,11 @@ class YOLOv9(AbstractModel):
         # 0.0-1.0 -> 0 - 255
         min_val = depth.min()
         max_val = depth.max()
-        result_depth = ((depth.squeeze() - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+        depth = depth.squeeze()
+        if not is_metric:
+            result_depth = ((depth - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+        else:
+            result_depth = 255 - ((depth - min_val) / (max_val - min_val) * 255).astype(np.uint8)
 
         if len(boxes) > 0:
             scores = boxes[:, 2:3]
@@ -479,7 +488,8 @@ class YOLOv9(AbstractModel):
                             y2=y_max,
                             cx=cx,
                             cy=cy,
-                            cz=int(np.median(result_depth[cry1:cry2, crx1:crx2])),
+                            cz=np.median(result_depth[cry1:cry2, crx1:crx2]) \
+                                if not is_metric else np.median(depth[cry1:cry2, crx1:crx2]),
                             generation=-1, # -1: Unknown, 0: Adult, 1: Child
                             gender=-1, # -1: Unknown, 0: Male, 1: Female
                             handedness=-1, # -1: Unknown, 0: Left, 1: Right
@@ -1029,6 +1039,13 @@ def main():
             'Enable face mosaic. (Press F on the keyboard to switch modes)',
     )
     parser.add_argument(
+        '-ebd',
+        '--enable_bone_drawing',
+        action='store_true',
+        help=\
+            'Enable bone drawing. (Press B on the keyboard to switch modes)',
+    )
+    parser.add_argument(
         '-edm',
         '--enable_depth_map_overlay',
         action='store_true',
@@ -1100,6 +1117,7 @@ def main():
     disable_headpose_identification_mode: bool = args.disable_headpose_identification_mode
     disable_render_classids: List[int] = args.disable_render_classids
     enable_face_mosaic: bool = args.enable_face_mosaic
+    enable_bone_drawing: bool = args.enable_bone_drawing
     enable_depth_map_overlay: bool = args.enable_depth_map_overlay
     enable_head_distance_measurement: bool = args.enable_head_distance_measurement
     output_yolo_format_text: bool = args.output_yolo_format_text
@@ -1109,6 +1127,12 @@ def main():
     bounding_box_line_width: int = args.bounding_box_line_width
     camera_horizontal_fov: int = args.camera_horizontal_fov
     providers: List[Tuple[str, Dict] | str] = None
+
+    is_metric = False
+    if "metric_indoor" in model_file:
+        is_metric = True
+    elif "metric_outdoor" in model_file:
+        is_metric = True
 
     if execution_provider == 'cpu':
         providers = [
@@ -1215,8 +1239,15 @@ def main():
             disable_gender_identification_mode=disable_gender_identification_mode,
             disable_left_and_right_hand_identification_mode=disable_left_and_right_hand_identification_mode,
             disable_headpose_identification_mode=disable_headpose_identification_mode,
+            is_metric=is_metric,
         )
         elapsed_time = time.perf_counter() - start_time
+
+        # Depth map overlay
+        if enable_depth_map_overlay:
+            depth_colormap = cv2.applyColorMap((depth_map * 255).astype(np.uint8), cv2.COLORMAP_JET)
+            depth_colormap = cv2.cvtColor(depth_colormap, cv2.COLOR_RGB2BGR)
+            debug_image = cv2.addWeighted(debug_image, 0.6, depth_colormap, 0.4, 0)
 
         if file_paths is None:
             cv2.putText(debug_image, f'{elapsed_time*1000:.2f} ms', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
@@ -1288,7 +1319,7 @@ def main():
                 color = (0,255,0)
             elif classid == 25:
                 # Wrist
-                color = (0,0,255)
+                color = (55,77,100)
 
             elif classid == 26:
                 if not disable_left_and_right_hand_identification_mode:
@@ -1308,16 +1339,16 @@ def main():
 
             elif classid == 29:
                 # abdomen
-                color = (0,0,255)
+                color = (164,87,148)
             elif classid == 30:
                 # hip_joint
-                color = (255,0,0)
+                color = (71,212,230)
             elif classid == 31:
                 # Knee
-                color = (0,0,255)
+                color = (16,70,221)
             elif classid == 32:
                 # ankle
-                color = (255,0,0)
+                color = (46,22,15)
 
             elif classid == 33:
                 # Foot
@@ -1494,7 +1525,10 @@ def main():
                     # Normal camera (Pinhole Model)
                     focalLength = debug_image_w / (2 * math.tan((camera_horizontal_fov / 2) * (math.pi / 180)))
                 # Meters
-                distance = (AVERAGE_HEAD_WIDTH * focalLength) / abs(box.x2 - box.x1)
+                if not is_metric:
+                    distance = (AVERAGE_HEAD_WIDTH * focalLength) / abs(box.x2 - box.x1)
+                else:
+                    distance = box.cz
 
                 cv2.putText(
                     debug_image,
@@ -1551,13 +1585,8 @@ def main():
             # )
 
         # Draw skeleton
-        draw_skeleton(image=debug_image, boxes=boxes, color=(0, 255, 255))
-
-        # Depth map overlay
-        if enable_depth_map_overlay:
-            depth_colormap = cv2.applyColorMap((depth_map * 255).astype(np.uint8), cv2.COLORMAP_JET)
-            depth_colormap = cv2.cvtColor(depth_colormap, cv2.COLOR_RGB2BGR)
-            debug_image = cv2.addWeighted(debug_image, 0.6, depth_colormap, 0.4, 0)
+        if enable_bone_drawing:
+            draw_skeleton(image=debug_image, boxes=boxes, color=(0, 255, 255))
 
         if file_paths is not None:
             basename = os.path.basename(file_paths[file_paths_count])
@@ -1618,6 +1647,8 @@ def main():
                 keypoint_drawing_mode = 'dot'
         elif key == 102: # F, Face Mosaic mode switch
             enable_face_mosaic = not enable_face_mosaic
+        elif key == 98: # B, Bone drawing mode switch
+            enable_bone_drawing = not enable_bone_drawing
         elif key == 100: # D, Depth map overlay mode switch
             enable_depth_map_overlay = not enable_depth_map_overlay
         elif key == 109: # M, Head distance measurement mode switch
