@@ -7,6 +7,13 @@ import os
 import sys
 import copy
 import cv2
+try:
+    import onnx
+    import onnxruntime
+    from sne4onnx import extraction
+    from sor4onnx import rename
+except:
+    pass
 import math
 import time
 from pprint import pprint
@@ -104,10 +111,18 @@ class AbstractModel(ABC):
     _model_path: str = ''
     _obj_class_score_th: float = 0.35
     _attr_class_score_th: float = 0.70
-    _input_shapes: List[List[int]] = []
+
+    _input_shapes: List[List[int | str]] = []
     _input_names: List[str] = []
-    _output_shapes: List[List[int]] = []
+    _input_dtypes: List[np.dtype] = []
+    _output_shapes: List[List[int | str]] = []
     _output_names: List[str] = []
+
+    _input_shapes_postprocess: List[List[int | str]] = []
+    _input_names_postprocess: List[str] = []
+    _input_dtypes_postprocess: List[np.dtype] = []
+    _output_shapes_postprocess: List[List[int | str]] = []
+    _output_names_postprocess: List[str] = []
 
     # onnx/tflite
     _interpreter = None
@@ -134,6 +149,7 @@ class AbstractModel(ABC):
         *,
         runtime: Optional[str] = 'onnx',
         model_path: Optional[str] = '',
+        model_path_post: Optional[str] = '',
         obj_class_score_th: Optional[float] = 0.35,
         attr_class_score_th: Optional[float] = 0.70,
         keypoint_th: Optional[float] = 0.25,
@@ -151,6 +167,9 @@ class AbstractModel(ABC):
     ):
         self._runtime = runtime
         self._model_path = model_path
+        self._model_path_post = model_path_post
+        self._model = None
+        self._model_postprocess = None
         self._obj_class_score_th = obj_class_score_th
         self._attr_class_score_th = attr_class_score_th
         self._keypoint_th = keypoint_th
@@ -158,10 +177,11 @@ class AbstractModel(ABC):
 
         # Model loading
         if self._runtime == 'onnx':
-            import onnxruntime # type: ignore
             onnxruntime.set_default_logger_severity(3) # ERROR
             session_option = onnxruntime.SessionOptions()
             session_option.log_severity_level = 3
+
+            # Initialize model body
             self._interpreter = \
                 onnxruntime.InferenceSession(
                     model_path,
@@ -172,7 +192,6 @@ class AbstractModel(ABC):
             print(f'{Color.GREEN("Enabled ONNX ExecutionProviders:")}')
             pprint(f'{self._providers}')
 
-            import onnx
             onnx_graph: onnx.ModelProto = onnx.load(model_path)
             if onnx_graph.graph.node[0].op_type == "Resize":
                 first_resize_op: List[onnx.ValueInfoProto] = [i for i in onnx_graph.graph.value_info if i.name == "prep/Resize_output_0"]
@@ -204,6 +223,29 @@ class AbstractModel(ABC):
             self._swap = (2, 0, 1)
             self._h_index = 2
             self._w_index = 3
+
+            # Support for TensorRT 9.x+
+            # Initialize model post-process
+            if any((p[0] if isinstance(p, tuple) else p) == "TensorrtExecutionProvider" for p in providers) and model_path_post:
+                self._interpreter_postprocess = \
+                    onnxruntime.InferenceSession(
+                        model_path_post,
+                        sess_options=session_option,
+                        providers=['CPUExecutionProvider'],
+                    )
+                self._input_names_postprocess = [
+                    input.name for input in self._interpreter_postprocess.get_inputs()
+                ]
+                self._input_dtypes_postprocess = [
+                    self._onnx_dtypes_to_np_dtypes[input.type] for input in self._interpreter_postprocess.get_inputs()
+                ]
+                self._output_shapes_postprocess = [
+                    output.shape for output in self._interpreter_postprocess.get_outputs()
+                ]
+                self._output_names_postprocess = [
+                    output.name for output in self._interpreter_postprocess.get_outputs()
+                ]
+                self._model_postprocess = self._interpreter_postprocess.run
 
         elif self._runtime in ['tflite_runtime', 'tensorflow']:
             if self._runtime == 'tflite_runtime':
@@ -249,6 +291,25 @@ class AbstractModel(ABC):
                         input_feed=datas,
                     )
             ]
+            # Support for TensorRT 9.x+
+            # Isolation of NMS
+            if self._model_postprocess:
+                datas = {
+                    f'{input_name}': input_data \
+                        for input_name, input_data in zip(self._output_names, outputs)
+                }
+                depth_datas = [
+                    input_data \
+                        for input_name, input_data in zip(self._output_names, outputs) if input_name == 'depth'
+                ]
+                outputs = [
+                    output for output in \
+                        self._model_postprocess(
+                            output_names=self._output_names_postprocess,
+                            input_feed=datas,
+                        )
+                ]
+                outputs = outputs + depth_datas
             return outputs
         elif self._runtime in ['tflite_runtime', 'tensorflow']:
             outputs = [
@@ -276,6 +337,97 @@ class AbstractModel(ABC):
         boxes: np.ndarray,
     ) -> List[Box]:
         raise NotImplementedError()
+
+    # Support for TensorRT 9.x+
+    def model_split(
+        self,
+        *,
+        model_path: str,
+        output_model_path: str,
+        runtime: Optional[str] = 'onnx',
+        input_op_names: List[str] = ['input'],
+        output_op_names: List[str] = ['output'],
+    ) -> onnx.ModelProto:
+        """https://github.com/PINTO0309/sne4onnx
+
+        Parameters
+        ----------
+        model_path: str
+            ONNX file path for YOLOv9
+
+        output_model_path: str
+            ONNX file path for YOLOv9
+
+        runtime: Optional[str]
+            Default: 'onnx'
+
+        input_op_names: List[str]
+            Default: ['input']
+
+        output_op_names: List[str]
+            Default: ['output']
+
+        Returns
+        -------
+        extracted_model: onnx.ModelProto
+        """
+        if runtime != 'onnx':
+            raise NotImplementedError()
+        extracted_model = extraction(
+            input_op_names=input_op_names,
+            output_op_names=output_op_names,
+            input_onnx_file_path=model_path,
+            output_onnx_file_path=output_model_path,
+            non_verbose=True,
+        )
+        return extracted_model
+
+    # Support for TensorRT 9.x+
+    def model_op_rename(
+        self,
+        *,
+        model_path: str,
+        output_model_path: str,
+        runtime: Optional[str] = 'onnx',
+        old_new: List[str] = ['input', 'input'],
+        mode: str = 'full',
+        search_mode: str = 'exact_match',
+    ) -> onnx.ModelProto:
+        """https://github.com/PINTO0309/sor4onnx
+
+        Parameters
+        ----------
+        model_path: str
+            ONNX file path for YOLOv9
+
+        output_model_path: str
+            ONNX file path for YOLOv9
+
+        runtime: Optional[str]
+            Default: 'onnx'
+
+        old_new: List[str]
+            Default: ['input', 'input']
+
+        mode: str
+            Default: 'full'
+
+        search_mode: str
+            Default: 'exact_match'
+
+        Returns
+        -------
+        renamed_model: onnx.ModelProto
+        """
+        if runtime != 'onnx':
+            raise NotImplementedError()
+        renamed_model = rename(
+            old_new=old_new,
+            input_onnx_file_path=model_path,
+            output_onnx_file_path=output_model_path,
+            non_verbose=True,
+        )
+        return renamed_model
 
 class YOLOv9(AbstractModel):
     def __init__(

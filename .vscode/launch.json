@@ -13,12 +13,12 @@
                 // "-m", "yolov9_e_wholebody34_with_depth_metric_outdoor_post_0100_1x3x480x640.onnx",
                 "-m", "yolov9_e_wholebody34_with_depth_seg_post_0100_1x3x480x640.onnx",
 
-                // "-v", "0",
+                "-v", "0",
                 // "-i", "./images_partial",
-                "-i", "./images",
+                // "-i", "./images",
 
-                // "-ep", "tensorrt",
-                "-ep", "cuda",
+                "-ep", "tensorrt",
+                // "-ep", "cuda",
                 // "-it", "int8",
                 // "-dvw",
                 "-dwk",
