@@ -1,5 +1,7 @@
 # yolo-depthanythingv2-merge
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/PINTO0309/yolo-depthanythingv2-merge)
+
 - TensorRT 10 test
 
   https://github.com/user-attachments/assets/5d3f904e-b41d-4c55-819b-2e5930e0cb6b
