@@ -4,6 +4,10 @@
 
   https://github.com/user-attachments/assets/5d3f904e-b41d-4c55-819b-2e5930e0cb6b
 
+- BBox/Center Point Depth, Full Angle Depth, People Segmentation
+
+  ![image](https://github.com/user-attachments/assets/ccdbb755-d9f7-4388-8d4f-e09a745625ed)
+
 ## 1. Merging YOLOv9 and DepthAnythingV2
 ```bash
 H=490 # Multiples of 14
