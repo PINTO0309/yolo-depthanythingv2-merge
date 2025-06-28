@@ -301,6 +301,7 @@ https://github.com/azuraservices/human-pose-segmentation
 
 ![image](https://github.com/user-attachments/assets/4fa21171-bed0-4c3b-93da-8c1d9c4d800c)
 
+[高精度 Human-Instance-Segmentation (People-Instance-Segmentation, Person-Instance-Segmentation) の実装アイデア](https://zenn.dev/pinto0309/scraps/266fa8a8826075)
 
 ## License
 
