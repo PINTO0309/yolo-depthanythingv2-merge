@@ -287,6 +287,17 @@ Verify that the required ONNX model files exist:
 ls *.onnx
 ```
 
+## 7. Next challenge
+
+https://github.com/PINTO0309/yolov9_wholebody34_heatmap_vis
+
+![image](https://github.com/user-attachments/assets/3149c8a9-e0d5-4cca-858f-71d35dd1095e)
+
+https://github.com/liruilong940607/Pose2Seg
+
+![image](https://github.com/user-attachments/assets/4fa21171-bed0-4c3b-93da-8c1d9c4d800c)
+
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
