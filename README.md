@@ -295,6 +295,8 @@ https://github.com/PINTO0309/yolov9_wholebody34_heatmap_vis
 
 https://github.com/liruilong940607/Pose2Seg
 
+https://github.com/sreeharshaparuchur1/Pose2Seg-human-segmentation
+
 ![image](https://github.com/user-attachments/assets/4fa21171-bed0-4c3b-93da-8c1d9c4d800c)
 
 
