@@ -2,6 +2,8 @@
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/PINTO0309/yolo-depthanythingv2-merge)
 
+**The model committed to this repository is an incomplete model that has not yet been fully trained, and is therefore a demo model whose detection performance is only about 45% of the original accuracy.**
+
 - TensorRT 10 test
 
   https://github.com/user-attachments/assets/5d3f904e-b41d-4c55-819b-2e5930e0cb6b
