@@ -297,6 +297,8 @@ https://github.com/liruilong940607/Pose2Seg
 
 https://github.com/sreeharshaparuchur1/Pose2Seg-human-segmentation
 
+https://github.com/azuraservices/human-pose-segmentation
+
 ![image](https://github.com/user-attachments/assets/4fa21171-bed0-4c3b-93da-8c1d9c4d800c)
 
 
